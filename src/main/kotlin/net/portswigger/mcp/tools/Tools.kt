@@ -10,10 +10,17 @@ import burp.api.montoya.http.HttpService
 import burp.api.montoya.http.message.HttpHeader
 import burp.api.montoya.http.message.requests.HttpRequest
 import io.modelcontextprotocol.kotlin.sdk.server.Server
+import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
+import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import net.portswigger.mcp.config.McpConfig
+import net.portswigger.mcp.evidence.EvidenceAnnotation
+import net.portswigger.mcp.evidence.EvidenceCaptureResult
+import net.portswigger.mcp.evidence.EvidenceService
+import net.portswigger.mcp.ui.BurpUiService
 import net.portswigger.mcp.schema.encodeHistoryItem
 import net.portswigger.mcp.schema.toSerializableForm
 import net.portswigger.mcp.security.DataAccessSecurity
@@ -21,6 +28,7 @@ import net.portswigger.mcp.security.DataAccessType
 import net.portswigger.mcp.security.HttpRequestSecurity
 import net.portswigger.mcp.security.filterConfigCredentials
 import java.awt.KeyboardFocusManager
+import java.util.Base64
 import java.util.regex.Pattern
 import javax.swing.JTextArea
 
@@ -109,6 +117,50 @@ private fun normalizePrelude(prelude: String): String = prelude
     .replace("\n", "\r\n")      // All LF → proper CRLF
 
 fun Server.registerTools(api: MontoyaApi, config: McpConfig) {
+
+    mcpTool<CaptureBurpEvidence>(
+        "Captures the Burp Suite window (or full desktop) as PNG evidence. " +
+            "Use crop coordinates to keep only the relevant Repeater, Intruder, Proxy, or Scanner area."
+    ) {
+        require(config.evidenceCaptureEnabled) { "Screenshot tools are disabled in the Burp MCP tab" }
+        val result = EvidenceService.capture(
+            api = api,
+            configuredDirectory = config.evidenceDirectory,
+            label = label,
+            scope = scope ?: config.evidenceDefaultScope,
+            poc = poc ?: config.evidenceDefaultPoc,
+            cropX = cropX,
+            cropY = cropY,
+            cropWidth = cropWidth,
+            cropHeight = cropHeight,
+        )
+        evidenceContent(result, config)
+    }
+
+    mcpTool<AnnotateBurpEvidence>(
+        "Annotates a captured Burp PNG with report-ready rectangles, highlights, arrows, text, blur, or redaction. " +
+            "Coordinates are relative to the captured image. Use callout to draw an arrow and its label together."
+    ) {
+        require(config.evidenceCaptureEnabled) { "Screenshot tools are disabled in the Burp MCP tab" }
+        val result = EvidenceService.annotate(config.evidenceDirectory, capturePath, annotations)
+        evidenceContent(result, config)
+    }
+
+    mcpTool<ListBurpEvidence>("Lists recent PNG evidence files created by the Burp MCP extension.") {
+        require(config.evidenceCaptureEnabled) { "Screenshot tools are disabled in the Burp MCP tab" }
+        EvidenceService.list(config.evidenceDirectory, limit).joinToString("\n").ifBlank { "No evidence files found" }
+    }
+
+    mcpTool<ListRepeaterTabs>("Lists the visible Burp Repeater tabs with 1-based indexes.") {
+        BurpUiService.listRepeaterTabs(api)
+    }
+
+    mcpTool<DeleteRepeaterTab>(
+        "Closes one exact Repeater tab in Burp Suite. Provide either tabName or the 1-based tabIndex. " +
+            "This is an irreversible UI action for the selected tab; use the exact name when possible."
+    ) {
+        BurpUiService.deleteRepeaterTab(api, tabName, tabIndex)
+    }
 
     mcpTool<SendHttp1Request>("Issues an HTTP/1.1 request and returns the response.") {
         val allowed = runBlocking {
@@ -403,6 +455,13 @@ fun Server.registerTools(api: MontoyaApi, config: McpConfig) {
     }
 }
 
+private fun evidenceContent(result: EvidenceCaptureResult, config: McpConfig): List<ContentBlock> {
+    val metadata = TextContent(Json.encodeToString(result))
+    if (!config.evidenceIncludeImage) return listOf(metadata)
+    val encoded = Base64.getEncoder().encodeToString(EvidenceService.readPng(config.evidenceDirectory, result.path))
+    return listOf(metadata, ImageContent(data = encoded, mimeType = "image/png"))
+}
+
 fun getActiveEditor(api: MontoyaApi): JTextArea? {
     val frame = api.userInterface().swingUtils().suiteFrame()
 
@@ -533,4 +592,33 @@ data class GenerateCollaboratorPayload(
 @Serializable
 data class GetCollaboratorInteractions(
     val payloadId: String? = null
+)
+
+@Serializable
+data class CaptureBurpEvidence(
+    val label: String = "burp-evidence",
+    val poc: String? = null,
+    val scope: String? = null,
+    val cropX: Int? = null,
+    val cropY: Int? = null,
+    val cropWidth: Int? = null,
+    val cropHeight: Int? = null,
+)
+
+@Serializable
+data class AnnotateBurpEvidence(
+    val capturePath: String,
+    val annotations: List<EvidenceAnnotation>,
+)
+
+@Serializable
+data class ListBurpEvidence(val limit: Int = 20)
+
+@Serializable
+class ListRepeaterTabs
+
+@Serializable
+data class DeleteRepeaterTab(
+    val tabName: String? = null,
+    val tabIndex: Int? = null,
 )

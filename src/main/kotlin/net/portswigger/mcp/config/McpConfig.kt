@@ -14,7 +14,7 @@ class McpConfig(storage: PersistedObject, private val logging: Logging) {
     var enabled by storage.boolean(true)
     var configEditingTooling by storage.boolean(false)
     var host by storage.string("127.0.0.1")
-    var port by storage.int(9876)
+    var port by storage.int(9877)
     var requireHttpRequestApproval by storage.boolean(true)
     var requireDataAccessApproval by storage.boolean(true)
 
@@ -49,6 +49,13 @@ class McpConfig(storage: PersistedObject, private val logging: Logging) {
         }
 
     var filterConfigCredentials by storage.boolean(true)
+    var evidenceCaptureEnabled by storage.boolean(true)
+    var evidenceDirectory by storage.string(
+        java.nio.file.Paths.get(System.getProperty("user.home"), ".burp-mcp", "evidence").toString()
+    )
+    var evidenceDefaultPoc by storage.string("poc-1")
+    var evidenceDefaultScope by storage.string("burp")
+    var evidenceIncludeImage by storage.boolean(true)
 
     private var _autoApproveTargets by storage.stringList("")
     private val targetsChangeListeners = CopyOnWriteArrayList<ListenerRegistration>()

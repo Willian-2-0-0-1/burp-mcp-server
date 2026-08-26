@@ -21,6 +21,7 @@ class McpServerIntegrationTest {
     private val testPort = findAvailablePort()
     private val persistedObject = mockk<PersistedObject>()
     private var serverStarted = false
+    private var serverFailure: Throwable? = null
 
     init {
         every { persistedObject.getBoolean(any()) } returns true
@@ -43,18 +44,20 @@ class McpServerIntegrationTest {
         serverManager.start(config) { state ->
             if (state is ServerState.Running) {
                 serverStarted = true
+            } else if (state is ServerState.Failed) {
+                serverFailure = state.exception
             }
         }
         
         runBlocking {
             var attempts = 0
-            while (!serverStarted && attempts < 10) {
+            while (!serverStarted && serverFailure == null && attempts < 100) {
                 delay(100)
                 attempts++
             }
             
             if (!serverStarted) {
-                throw IllegalStateException("Server failed to start after timeout")
+                throw IllegalStateException("Server failed to start after timeout", serverFailure)
             }
         }
     }
@@ -85,6 +88,11 @@ class McpServerIntegrationTest {
             val toolNames = tools.map { it.name }
             assertTrue(toolNames.contains("output_project_options"), "Server should have output_project_options tool")
             assertTrue(toolNames.contains("output_user_options"), "Server should have output_user_options tool")
+            assertTrue(toolNames.contains("capture_burp_evidence"), "Server should have capture_burp_evidence tool")
+            assertTrue(toolNames.contains("annotate_burp_evidence"), "Server should have annotate_burp_evidence tool")
+            assertTrue(toolNames.contains("list_burp_evidence"), "Server should have list_burp_evidence tool")
+            assertTrue(toolNames.contains("list_repeater_tabs"), "Server should have list_repeater_tabs tool")
+            assertTrue(toolNames.contains("delete_repeater_tab"), "Server should have delete_repeater_tab tool")
             
             val pingResult = client.ping()
             assertNotNull(pingResult, "Ping should return a result")

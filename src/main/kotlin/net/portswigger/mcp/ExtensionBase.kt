@@ -12,7 +12,7 @@ import net.portswigger.mcp.providers.ProxyJarManager
 class ExtensionBase : BurpExtension {
 
     override fun initialize(api: MontoyaApi) {
-        api.extension().setName("Burp MCP Server")
+        api.extension().setName("Burp MCP Server + Evidence")
 
         val config = McpConfig(api.persistence().extensionData(), api.logging())
         val serverManager = KtorServerManager(api)
@@ -20,7 +20,7 @@ class ExtensionBase : BurpExtension {
         val proxyJarManager = ProxyJarManager(api.logging())
 
         val configUi = ConfigUi(
-            config = config, providers = listOf(
+            api = api, config = config, providers = listOf(
                 ClaudeDesktopProvider(api.logging(), proxyJarManager),
                 ManualProxyInstallerProvider(api.logging(), proxyJarManager),
             )

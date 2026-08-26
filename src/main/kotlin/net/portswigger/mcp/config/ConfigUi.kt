@@ -1,5 +1,6 @@
 package net.portswigger.mcp.config
 
+import burp.api.montoya.MontoyaApi
 import io.ktor.util.network.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +16,11 @@ import javax.swing.*
 import javax.swing.Box.*
 import javax.swing.JOptionPane.ERROR_MESSAGE
 
-class ConfigUi(private val config: McpConfig, private val providers: List<Provider>) {
+class ConfigUi(
+    private val api: MontoyaApi,
+    private val config: McpConfig,
+    private val providers: List<Provider>,
+) {
 
     private val panel = JPanel(BorderLayout())
     val component: JComponent get() = panel
@@ -49,6 +54,7 @@ class ConfigUi(private val config: McpConfig, private val providers: List<Provid
     private lateinit var advancedOptionsPanel: AdvancedOptionsPanel
     private lateinit var autoApproveTargetsPanel: AutoApproveTargetsPanel
     private lateinit var installationPanel: InstallationPanel
+    private lateinit var evidenceConfigurationPanel: EvidenceConfigurationPanel
 
     private var toggleListener: ((Boolean) -> Unit)? = null
     private var suppressToggleEvents: Boolean = false
@@ -82,6 +88,8 @@ class ConfigUi(private val config: McpConfig, private val providers: List<Provid
         installationPanel = InstallationPanel(
             config = config, providers = providers, reinstallNotice = reinstallNotice, parentComponent = panel
         )
+
+        evidenceConfigurationPanel = EvidenceConfigurationPanel(api, config)
 
         setupConfigListeners()
     }
@@ -199,6 +207,9 @@ class ConfigUi(private val config: McpConfig, private val providers: List<Provid
         rightPanelContent.add(createVerticalStrut(Design.Spacing.LG))
 
         rightPanelContent.add(autoApproveTargetsPanel)
+
+        rightPanelContent.add(createVerticalStrut(Design.Spacing.LG))
+        rightPanelContent.add(evidenceConfigurationPanel)
 
         rightPanelContent.add(createVerticalStrut(15))
         rightPanelContent.add(advancedOptionsPanel)

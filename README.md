@@ -11,6 +11,58 @@ For more information about the protocol visit: [modelcontextprotocol.io](https:/
 - Connect Burp Suite to AI clients through MCP
 - Automatic installation for Claude Desktop
 - Comes with packaged Stdio MCP proxy server
+- Capture the Burp UI or full desktop as PNG evidence
+- Crop screenshots to the relevant Repeater, Intruder, Proxy, or Scanner area
+- Add report-ready rectangles, highlights, arrows, callout text, blur, and redaction
+- Return the resulting PNG directly to image-capable MCP clients
+
+## Evidence capture fork
+
+This working branch extends the upstream PortSwigger MCP server with three tools:
+
+- `capture_burp_evidence`: captures Burp or the full desktop and optionally crops it;
+- `list_repeater_tabs`: lists the visible Repeater tabs with stable 1-based indexes;
+- `delete_repeater_tab`: closes one exact Repeater tab by name or 1-based index;
+- `annotate_burp_evidence`: adds `rectangle`, `highlight`, `arrow`, `callout`,
+  `text`, `blur`, or `redact` annotations;
+- `list_burp_evidence`: lists recent PNG evidence files.
+
+Configure the feature in Burp under `MCP` -> `Evidence capture`. The panel lets
+you enable the tools, choose the evidence directory, default PoC folder and
+default scope, and choose whether the PNG is returned to the MCP client. Each
+capture is saved below `<evidence-directory>/<poc-folder>/` and listings recurse
+through PoC folders. All file operations are restricted to the configured
+evidence directory.
+
+Example annotation matching a pentest report screenshot:
+
+```json
+{
+  "capturePath": "C:/Users/Will/.burp-mcp/evidence/repeater.png",
+  "annotations": [
+    {
+      "type": "rectangle",
+      "x": 615,
+      "y": 385,
+      "width": 585,
+      "height": 220,
+      "color": "#ff2020",
+      "strokeWidth": 4
+    },
+    {
+      "type": "callout",
+      "x": 385,
+      "y": 570,
+      "width": 165,
+      "endX": 585,
+      "endY": 545,
+      "text": "Teste de escrita",
+      "color": "#ff2020",
+      "fontSize": 28
+    }
+  ]
+}
+```
 
 ## Usage
 
@@ -65,7 +117,7 @@ Upon successful loading, the MCP Server Extension will be active within Burp Sui
 Configuration for the extension is done through the Burp Suite UI in the `MCP` tab.
 - **Toggle the MCP Server**: The `Enabled` checkbox controls whether the MCP server is active.
 - **Enable config editing**: The `Enable tools that can edit your config` checkbox allows the MCP server to expose tools which can edit Burp configuration files.
-- **Advanced options**: You can configure the port and host for the MCP server. By default, it listens on `http://127.0.0.1:9876`.
+- **Advanced options**: You can configure the port and host for the MCP server. This evidence fork defaults to `http://127.0.0.1:9877` to avoid the local WSL relay already using 9876.
 
 ### Claude Desktop Client
 
@@ -95,7 +147,7 @@ The extension has an installer which will automatically configure the client set
             "args": [
                 "-jar",
                 "/path/to/mcp/proxy/jar/mcp-proxy-all.jar",
-                "--sse-url",
+            "--sse-url",
                 "<your Burp MCP server URL configured in the extension>"
             ]
           }
@@ -112,7 +164,7 @@ Stdio proxy server.
 ### SSE MCP Server
 To use the SSE server directly, provide the configured server URL to your MCP client:
 ```
-http://127.0.0.1:9876
+http://127.0.0.1:9877
 ```
 
 ### Stdio MCP Proxy Server
@@ -124,7 +176,7 @@ passing requests to the SSE MCP server extension.
 If you want to use the Stdio proxy server you can use the extension's installer option to extract the proxy server jar.
 Once you have the jar you can add the following command and args to your client configuration:
 ```
-/path/to/packaged/burp/java -jar /path/to/proxy/jar/mcp-proxy-all.jar --sse-url http://127.0.0.1:9876
+/path/to/packaged/burp/java -jar /path/to/proxy/jar/mcp-proxy-all.jar --sse-url http://127.0.0.1:9877
 ```
 
 If you modify the proxy source, rebuild and copy it into this project before packaging the extension:

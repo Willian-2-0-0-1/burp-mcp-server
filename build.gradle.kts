@@ -4,7 +4,10 @@ abstract class EmbedProxyJarTask : DefaultTask() {
     @get:InputFile
     abstract val shadowJarFile: RegularFileProperty
 
-    @get:InputDirectory
+    @get:InputFile
+    abstract val proxyJarFile: RegularFileProperty
+
+    @get:Internal
     abstract val projectDir: DirectoryProperty
 
     @get:Inject
@@ -13,16 +16,16 @@ abstract class EmbedProxyJarTask : DefaultTask() {
     @TaskAction
     fun embedJar() {
         val shadowJar = shadowJarFile.get().asFile
-        val libsDir = projectDir.dir("libs").get().asFile
-        val proxyJarFile = File(libsDir, "mcp-proxy-all.jar")
+        val proxyJar = proxyJarFile.get().asFile
+        val libsDir = proxyJar.parentFile
 
-        if (!proxyJarFile.exists()) {
-            throw GradleException("Proxy JAR not found at: ${proxyJarFile.absolutePath}")
+        if (!proxyJar.exists()) {
+            throw GradleException("Proxy JAR not found at: ${proxyJar.absolutePath}")
         }
 
         execOperations.exec {
             workingDir(projectDir.get().asFile)
-            commandLine("jar", "uf", shadowJar.absolutePath, "-C", libsDir.absolutePath, proxyJarFile.name)
+            commandLine("jar", "uf", shadowJar.absolutePath, "-C", libsDir.absolutePath, proxyJar.name)
         }
 
         logger.lifecycle("Embedded proxy JAR into ${shadowJar.name}")
@@ -75,7 +78,7 @@ kotlin {
 }
 
 application {
-    mainClass.set("net.portswigger.mcp.ExtensionBase")
+    mainClass.set("burp.BurpExtender")
 }
 
 tasks {
@@ -104,7 +107,7 @@ tasks {
                 mapOf(
                     "Implementation-Title" to project.name,
                     "Implementation-Version" to project.version,
-                    "Implementation-Vendor" to "PortSwigger",
+                    "Implementation-Vendor" to "PortSwigger upstream + Evidence fork",
                     "Built-By" to System.getProperty("user.name"),
                     "Built-Date" to Instant.now().toString(),
                     "Built-JDK" to "${System.getProperty("java.version")} (${System.getProperty("java.vendor")} ${
@@ -133,6 +136,7 @@ tasks {
         description = "Embeds the MCP proxy JAR into the shadow JAR"
         dependsOn(shadowJar)
         shadowJarFile.set(shadowJar.flatMap { it.archiveFile })
+        proxyJarFile.set(layout.projectDirectory.file("libs/mcp-proxy-all.jar"))
         projectDir.set(layout.projectDirectory)
     }
 
