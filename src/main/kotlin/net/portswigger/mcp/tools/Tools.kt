@@ -162,6 +162,43 @@ fun Server.registerTools(api: MontoyaApi, config: McpConfig) {
         BurpUiService.deleteRepeaterTab(api, tabName, tabIndex)
     }
 
+    mcpTool<SelectEditorView>(
+        "Selects a view tab (Pretty/Raw/Hex/Render/JQ) in the Repeater response (or request) editor. " +
+            "JQ renders the JSON body alone, without the header block above it."
+    ) {
+        BurpUiService.selectEditorView(api, viewName, rightHalf)
+    }
+
+    mcpTool<ScrollRepeaterResponse>(
+        "Scrolls the Repeater response viewer so the JSON body is visible instead of only headers. " +
+            "fraction 0.0=top, 1.0=bottom. Defaults to the response editor; set requestSide=true " +
+            "to scroll the request instead."
+    ) {
+        BurpUiService.scrollRepeaterResponse(api, fraction, requestSide)
+    }
+
+    mcpTool<InspectSendControl>("Debug: introspects the Repeater Send control.") {
+        BurpUiService.inspectSendControl(api)
+    }
+
+    mcpTool<DumpRepeaterUi>("Debug: dumps clickable components in the Repeater view.") {
+        BurpUiService.dumpRepeaterUi(api)
+    }
+
+    mcpTool<SendRepeaterTab>(
+        "Selects a Repeater tab and clicks its Send button so the Response panel is populated. " +
+            "Provide either tabName or the 1-based tabIndex; waitMs controls how long to wait for the response."
+    ) {
+        BurpUiService.sendRepeaterTab(api, tabName, tabIndex, waitMs)
+    }
+
+    mcpTool<DeleteAllRepeaterTabs>(
+        "Closes every Repeater request tab, or only those whose title starts with titlePrefix. " +
+            "Irreversible bulk UI action - use it to clear a Repeater cluttered by automation."
+    ) {
+        BurpUiService.deleteAllRepeaterTabs(api, titlePrefix)
+    }
+
     mcpTool<SendHttp1Request>("Issues an HTTP/1.1 request and returns the response.") {
         val allowed = runBlocking {
             HttpRequestSecurity.checkHttpRequestPermission(targetHostname, targetPort, config, content, api)
@@ -621,4 +658,26 @@ class ListRepeaterTabs
 data class DeleteRepeaterTab(
     val tabName: String? = null,
     val tabIndex: Int? = null,
+)
+
+@Serializable
+data class DeleteAllRepeaterTabs(val titlePrefix: String? = null)
+
+@Serializable
+data class SelectEditorView(val viewName: String = "JQ", val rightHalf: Boolean = true)
+
+@Serializable
+data class ScrollRepeaterResponse(val fraction: Double = 0.35, val requestSide: Boolean = false)
+
+@Serializable
+class InspectSendControl
+
+@Serializable
+class DumpRepeaterUi
+
+@Serializable
+data class SendRepeaterTab(
+    val tabName: String? = null,
+    val tabIndex: Int? = null,
+    val waitMs: Int = 4000,
 )
