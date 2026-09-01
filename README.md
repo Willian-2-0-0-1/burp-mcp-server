@@ -64,6 +64,88 @@ Example annotation matching a pentest report screenshot:
 }
 ```
 
+### Example: capturing a Repeater request end to end
+
+The screenshot below was produced entirely through MCP tool calls against a live
+Burp instance - no manual clicking:
+
+![Repeater request captured and annotated by the evidence tools](docs/evidence-capture.png)
+
+**1. `create_repeater_tab`** - create the tab with a raw request:
+
+```json
+{
+  "tabName": "demo-evidence",
+  "targetHostname": "httpbin.org",
+  "targetPort": 443,
+  "usesHttps": true,
+  "content": "GET /json HTTP/1.1\r\nHost: httpbin.org\r\nAccept: application/json\r\nConnection: close\r\n\r\n"
+}
+```
+
+**2. `send_repeater_tab`** - select that tab and click its Send button, waiting for
+the response to populate:
+
+```json
+{ "tabName": "demo-evidence", "waitMs": 6000 }
+```
+
+**3. `scroll_repeater_response`** - scroll the response viewer so the body is
+visible instead of only headers (`0.0` = top, `1.0` = bottom):
+
+```json
+{ "fraction": 0.0, "requestSide": false }
+```
+
+**4. `capture_burp_evidence`** - capture and crop to the request/response panes:
+
+```json
+{
+  "label": "readme-demo",
+  "poc": "readme",
+  "cropX": 0,
+  "cropY": 160,
+  "cropWidth": 1860,
+  "cropHeight": 620
+}
+```
+
+**5. `annotate_burp_evidence`** - box the request line and the status line, and
+label both:
+
+```json
+{
+  "capturePath": "<path returned by step 4>",
+  "annotations": [
+    { "type": "rectangle", "x": 50, "y": 170, "width": 275, "height": 38,
+      "color": "#2060ff", "strokeWidth": 4 },
+    { "type": "text", "x": 360, "y": 200, "text": "request sent via MCP",
+      "color": "#2060ff", "fontSize": 30 },
+    { "type": "rectangle", "x": 1968, "y": 170, "width": 220, "height": 38,
+      "color": "#ff2020", "strokeWidth": 4 },
+    { "type": "text", "x": 2225, "y": 200, "text": "response captured for the report",
+      "color": "#ff2020", "fontSize": 30 }
+  ]
+}
+```
+
+Each step returns the saved PNG path, and the annotated file is written alongside
+the original with an `-annotated` suffix, so the unannotated capture is preserved.
+
+#### Coordinate systems
+
+The two coordinate spaces are not the same, which matters on HiDPI displays:
+
+- **Crop** coordinates (`cropX`/`cropY`/`cropWidth`/`cropHeight`) are in **logical
+  UI pixels**, the same units as the Burp window size.
+- **Annotation** coordinates are in **physical pixels of the captured PNG**.
+
+On a 2x display a capture of a 1860x620 logical crop is returned as a 3720x1240
+PNG, so annotation coordinates are roughly double the crop values. On a 1x display
+the two spaces coincide. Read `width`/`height` from the capture result and place
+annotations against those numbers rather than against the crop you asked for.
+
+
 ## Usage
 
 - Install the extension in Burp Suite
