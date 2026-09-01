@@ -20,6 +20,14 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+/**
+ * Version reported to MCP clients. Read from the jar manifest, which the build populates from the
+ * Gradle project version, so it cannot drift from the released artifact. Falls back to "dev" when
+ * running without a manifest, such as from tests or an IDE.
+ */
+private val SERVER_VERSION: String =
+    KtorServerManager::class.java.`package`?.implementationVersion ?: "dev"
+
 class KtorServerManager(private val api: MontoyaApi) : ServerManager {
 
     private var server: EmbeddedServer<*, *>? = null
@@ -34,7 +42,7 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
                 server = null
 
                 val mcpServer = Server(
-                    serverInfo = Implementation("burp-suite", "1.1.2"), options = ServerOptions(
+                    serverInfo = Implementation("burp-suite", SERVER_VERSION), options = ServerOptions(
                         capabilities = ServerCapabilities(
                             tools = ServerCapabilities.Tools(listChanged = false)
                         )

@@ -333,6 +333,20 @@ object BurpUiService {
             }
             val tip = (c as? javax.swing.JComponent)?.toolTipText
             val name = c.name
+            // Tabbed panes carry no component text, so they never matched the clickable filter
+            // below. select_editor_view locates the Pretty/Raw/Hex selector by tab title, so the
+            // dump has to show tab titles or the failure cannot be diagnosed from here.
+            if (c is JTabbedPane && c.isShowing) {
+                val titles = (0 until c.tabCount).joinToString("|") { c.getTitleAt(it) }
+                val x = runCatching { c.locationOnScreen.x }.getOrDefault(-1)
+                sb.append("  ".repeat(depth.coerceAtMost(8)))
+                  .append(cls)
+                  .append(" TABS=[").append(titles).append("]")
+                  .append(" name=").append(name ?: "-")
+                  .append(" x=").append(x)
+                  .append(" showing=true")
+                  .append("\n")
+            }
             if (c.isShowing && (c is javax.swing.AbstractButton || (txt != null && txt.isNotBlank()))) {
                 sb.append("  ".repeat(depth.coerceAtMost(8)))
                   .append(cls)
