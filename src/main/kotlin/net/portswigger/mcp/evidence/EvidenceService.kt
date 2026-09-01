@@ -66,10 +66,16 @@ object EvidenceService {
         cropY: Int? = null,
         cropWidth: Int? = null,
         cropHeight: Int? = null,
+        scale: Double? = null,
     ): EvidenceCaptureResult {
         val normalizedScope = if (scope.lowercase() == "full") "full" else "burp"
-        var image = if (normalizedScope == "full") captureFullScreen() else captureBurp(api)
-        image = crop(image, cropX, cropY, cropWidth, cropHeight)
+        val frame = api.userInterface().swingUtils().suiteFrame()
+        val effective = if (normalizedScope == "full") 1.0 else captureScale(frame, scale)
+        var image = if (normalizedScope == "full") captureFullScreen() else captureBurp(api, effective)
+        // Crop arguments stay in logical (on-screen) coordinates so callers do not have to
+        // know the display scale; they are converted here.
+        fun s(v: Int?) = v?.let { (it * effective).toInt() }
+        image = crop(image, s(cropX), s(cropY), s(cropWidth), s(cropHeight))
 
         val safeLabel = label.lowercase(Locale.ROOT)
             .replace(Regex("[^a-z0-9._-]+"), "-")
@@ -132,14 +138,36 @@ object EvidenceService {
         return Files.readAllBytes(path)
     }
 
-    private fun captureBurp(api: MontoyaApi): BufferedImage {
+    /** Scale factor used when rendering Swing into the capture. On a HiDPI display
+     *  printAll() at logical size throws away half the resolution, which shows up as low
+     *  PPI in a report PDF. Rendering through a scaled Graphics2D re-renders text and
+     *  vectors at the higher resolution - this is genuine detail, not an upscale. */
+    private fun captureScale(frame: java.awt.Component, requested: Double?): Double {
+        val device = runCatching {
+            frame.graphicsConfiguration.defaultTransform.scaleX
+        }.getOrDefault(1.0)
+        val chosen = requested ?: maxOf(device, 2.0)
+        return chosen.coerceIn(1.0, 4.0)
+    }
+
+    private fun captureBurp(api: MontoyaApi, requestedScale: Double? = null): BufferedImage {
         val frame = api.userInterface().swingUtils().suiteFrame()
+        val scale = captureScale(frame, requestedScale)
         val width = max(1, frame.width)
         val height = max(1, frame.height)
-        val image = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+        val image = BufferedImage((width * scale).toInt(), (height * scale).toInt(), BufferedImage.TYPE_INT_RGB)
         val render = Runnable {
             val graphics = image.createGraphics()
             try {
+                graphics.setRenderingHint(
+                    java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON
+                )
+                graphics.setRenderingHint(
+                    java.awt.RenderingHints.KEY_RENDERING,
+                    java.awt.RenderingHints.VALUE_RENDER_QUALITY
+                )
+                graphics.scale(scale, scale)
                 graphics.color = frame.background
                 graphics.fillRect(0, 0, width, height)
                 frame.printAll(graphics)

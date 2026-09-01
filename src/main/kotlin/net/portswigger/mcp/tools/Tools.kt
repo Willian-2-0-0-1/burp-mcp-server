@@ -640,6 +640,7 @@ data class CaptureBurpEvidence(
     val cropY: Int? = null,
     val cropWidth: Int? = null,
     val cropHeight: Int? = null,
+    val scale: Double? = null,
 )
 
 @Serializable
