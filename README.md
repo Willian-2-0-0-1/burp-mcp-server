@@ -1,4 +1,10 @@
-# Burp Suite MCP Server Extension
+# Burp Suite MCP Server Extension (evidence fork)
+
+> **Unofficial fork.** This is a community fork of [PortSwigger/mcp-server](https://github.com/PortSwigger/mcp-server),
+> not an official PortSwigger release, and it is not affiliated with or endorsed by PortSwigger.
+> It adds PoC evidence capture and Repeater automation on top of the upstream extension.
+> For the official extension, use the BApp Store or the upstream repository.
+> Licensed GPL-3.0, the same as upstream.
 
 ## Overview
 
