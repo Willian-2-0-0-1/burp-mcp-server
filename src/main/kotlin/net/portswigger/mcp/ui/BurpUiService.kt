@@ -274,21 +274,24 @@ object BurpUiService {
         val pane = findRepeaterRequestPane(api) ?: return@onEdt "No Repeater pane"
         var root: Component = pane
         repeat(6) { root = root.parent ?: root }
-        val rootX = runCatching { root.locationOnScreen.x }.getOrDefault(0)
-        val mid = rootX + root.width / 2
         val hits = mutableListOf<JTabbedPane>()
         fun walk(c: Component) {
             if (c is JTabbedPane && c.isShowing && c !== pane) {
                 val titles = (0 until c.tabCount).map { c.getTitleAt(it).trim().lowercase() }
-                if (titles.contains("pretty") && titles.contains("raw")) {
-                    val x = runCatching { c.locationOnScreen.x }.getOrDefault(0)
-                    if ((x >= mid) == rightHalf) hits += c
-                }
+                if (titles.contains("pretty") && titles.contains("raw")) hits += c
             }
             if (c is Container) c.components.forEach { walk(it) }
         }
         walk(root)
-        val editor = hits.firstOrNull() ?: return@onEdt "Editor view tabs not found"
+
+        // Pick by relative order, not by a midpoint of the window. The editors sit side by side,
+        // so the leftmost is the request and the rightmost is the response, whatever else is on
+        // screen. Testing x against the window's midpoint fails whenever the Inspector panel is
+        // open: it occupies the right of the window, which pushes both editors left of centre and
+        // makes rightHalf match nothing.
+        val ordered = hits.sortedBy { runCatching { it.locationOnScreen.x }.getOrDefault(0) }
+        val editor = (if (rightHalf) ordered.lastOrNull() else ordered.firstOrNull())
+            ?: return@onEdt "Editor view tabs not found"
         val idx = (0 until editor.tabCount).firstOrNull {
             editor.getTitleAt(it).trim().equals(viewName.trim(), ignoreCase = true)
         } ?: return@onEdt "View '$viewName' not available (have: " +
